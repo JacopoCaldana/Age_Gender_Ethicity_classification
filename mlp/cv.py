@@ -4,9 +4,9 @@ import time
 from typing import Dict, List, Tuple, Optional, Callable
 import numpy as np
 
-from data import kfold_indices
-from model import MLPRegressor
-from metrics import mape, mse
+from .data import kfold_indices
+from .model import MLPRegressor
+from .metrics import mape, mse
 
 Array = np.ndarray
 

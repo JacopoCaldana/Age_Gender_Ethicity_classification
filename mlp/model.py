@@ -3,8 +3,8 @@ import numpy as np
 from typing import List, Tuple, Dict, Callable, Optional
 from scipy.optimize import minimize
 
-from activations import Activation, init_weights
-from metrics import mse, mape
+from .activations import Activation, init_weights
+from .metrics import mse, mape
 
 Array = np.ndarray
 
