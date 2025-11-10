@@ -11,6 +11,7 @@ from mlp.cv import grid_search_cv, build_hidden_layers
 from mlp.model import MLPRegressor
 from mlp.metrics import mse, mape
 from mlp.plotting import plot_training_history, plot_scatter_pred_vs_true, plot_cv_bars
+from mlp.report_utils import save_report_tables, print_summary
 
 
 def parse_args():
@@ -85,6 +86,17 @@ def main():
         l2=best["l2"],
         seed=args.seed,
     )
+    
+    # Get initial predictions for initial MAPE (before training)
+    # Initialize model with random weights
+    theta_init = model._init_theta()
+    model.theta_ = theta_init
+    ytr_pred_init_s = model.predict(Xtr_s)
+    ytr_pred_init = y_eval_inv(ytr_pred_init_s)
+    initial_train_mape = mape(ytr, ytr_pred_init)
+    initial_train_mse = mse(ytr, ytr_pred_init)
+    
+    # Now fit the model
     model.fit(Xtr_s, ytr_s, max_iter=args.max_iter, tol=args.tol, method="L-BFGS-B", verbose=False)
     plot_training_history(model.history_, os.path.join(args.outdir, "train_history.png"))
 
@@ -96,16 +108,36 @@ def main():
 
     train_metrics = {"mse": mse(ytr, ytr_pred), "mape": mape(ytr, ytr_pred)}
     test_metrics = {"mse": mse(yte, yte_pred), "mape": mape(yte, yte_pred)}
+    initial_metrics = {"mse": initial_train_mse, "mape": initial_train_mape}
 
     with open(os.path.join(args.outdir, "final_metrics.json"), "w") as f:
-        json.dump({"train": train_metrics, "test": test_metrics, "best_params": best}, f, indent=2)
+        json.dump({
+            "train": train_metrics,
+            "test": test_metrics,
+            "initial": initial_metrics,
+            "best_params": best,
+            "validation": {"mape": cv_out["best"]["mape"]},
+        }, f, indent=2)
 
-    print("Train metrics:", train_metrics)
+    print("Initial train metrics:", initial_metrics)
+    print("Final train metrics:", train_metrics)
     print("Test metrics:", test_metrics)
 
     # Catchy plots
     plot_scatter_pred_vs_true(ytr, ytr_pred, os.path.join(args.outdir, "scatter_train.png"), title="Train: Pred vs True")
     plot_scatter_pred_vs_true(yte, yte_pred, os.path.join(args.outdir, "scatter_test.png"), title="Test: Pred vs True")
+    
+    # Generate report tables
+    print("\nGenerating report tables...")
+    save_report_tables(
+        metrics_file=os.path.join(args.outdir, "final_metrics.json"),
+        cv_results_file=os.path.join(args.outdir, "cv_results.json"),
+        output_file=os.path.join(args.outdir, "report_tables.txt"),
+    )
+    print_summary(
+        metrics_file=os.path.join(args.outdir, "final_metrics.json"),
+        cv_results_file=os.path.join(args.outdir, "cv_results.json"),
+    )
 
 
 if __name__ == "__main__":
